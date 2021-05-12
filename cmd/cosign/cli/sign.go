@@ -75,12 +75,13 @@ func Sign() *ffcli.Command {
 		sk          = flagset.Bool("sk", false, "whether to use a hardware security key")
 		payloadPath = flagset.String("payload", "", "path to a payload file to use rather than generating one.")
 		force       = flagset.Bool("f", false, "skip warnings and confirmations")
+		recursive   = flagset.Bool("r", false, "if a multi-arch image is specified, additionally sign each discrete image")
 		annotations = annotationsMap{}
 	)
 	flagset.Var(&annotations, "a", "extra key=value pairs to sign")
 	return &ffcli.Command{
 		Name:       "sign",
-		ShortUsage: "cosign sign -key <key path>|<kms uri> [-payload <path>] [-a key=value] [-upload=true|false] [-f] <image uri>",
+		ShortUsage: "cosign sign -key <key path>|<kms uri> [-payload <path>] [-a key=value] [-upload=true|false] [-f] [-r] <image uri>",
 		ShortHelp:  `Sign the supplied container image.`,
 		LongHelp: `Sign the supplied container image.
 
@@ -90,6 +91,9 @@ EXAMPLES
 
   # sign a container image with a local key pair file
   cosign sign -key cosign.key <IMAGE>
+
+  # sign a multi-arch container image AND all referenced, discrete images
+  cosign sign -key cosign.key -r <MULTI-ARCH IMAGE>
 
   # sign a container image and add annotations
   cosign sign -key cosign.key -a key1=value1 -a key2=value2 <IMAGE>
@@ -113,7 +117,7 @@ EXAMPLES
 				Sk:          *sk,
 			}
 			for _, img := range args {
-				if err := SignCmd(ctx, so, img, *upload, *payloadPath, *force); err != nil {
+				if err := SignCmd(ctx, so, img, *upload, *payloadPath, *force, *recursive); err != nil {
 					return errors.Wrapf(err, "signing %s", img)
 				}
 			}
@@ -130,7 +134,7 @@ type SignOpts struct {
 }
 
 func SignCmd(ctx context.Context, so SignOpts,
-	imageRef string, upload bool, payloadPath string, force bool) error {
+	imageRef string, upload bool, payloadPath string, force bool, recursive bool) error {
 
 	// A key file or token is required unless we're in experimental mode!
 	if cosign.Experimental() {
@@ -153,21 +157,25 @@ func SignCmd(ctx context.Context, so SignOpts,
 	if err != nil {
 		return errors.Wrap(err, "getting remote image")
 	}
+
 	repo := ref.Context()
 	img := repo.Digest(get.Digest.String())
-	// The payload can be specified via a flag to skip generation.
-	var payload []byte
-	if payloadPath != "" {
-		fmt.Fprintln(os.Stderr, "Using payload from:", payloadPath)
-		payload, err = ioutil.ReadFile(filepath.Clean(payloadPath))
-	} else {
-		payload, err = (&sigPayload.Cosign{
-			Image:       img,
-			Annotations: so.Annotations,
-		}).MarshalJSON()
-	}
-	if err != nil {
-		return errors.Wrap(err, "payload")
+
+	toSign := []name.Digest{img}
+
+	if recursive && get.MediaType.IsIndex() {
+		idx, err := get.ImageIndex()
+		if err != nil {
+			return err
+		}
+		idxManifest, err := idx.IndexManifest()
+		if err != nil {
+			return err
+		}
+		for _, manifest := range idxManifest.Manifests {
+			childImg := repo.Digest(manifest.Digest.String())
+			toSign = append(toSign, childImg)
+		}
 	}
 
 	var signer signature.Signer
@@ -198,71 +206,93 @@ func SignCmd(ctx context.Context, so SignOpts,
 		cert, chain = k.Cert, k.Chain
 	}
 
-	sig, _, err := signer.Sign(ctx, payload)
-	if err != nil {
-		return errors.Wrap(err, "signing")
-	}
-
-	if !upload {
-		fmt.Println(base64.StdEncoding.EncodeToString(sig))
-		return nil
-	}
-
-	// sha256:... -> sha256-...
-	dstRef, err := cosign.DestinationRef(ref, get)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(os.Stderr, "Pushing signature to:", dstRef.String())
-	uo := cosign.UploadOpts{
-		Cert:         cert,
-		Chain:        chain,
-		DupeDetector: dupeDetector,
-		RemoteOpts:   []remote.Option{remoteAuth},
-	}
-
-	if !cosign.Experimental() {
-		_, err := cosign.Upload(ctx, sig, payload, dstRef, uo)
-		return err
-	}
-
 	// Check if the image is public (no auth in Get)
-	if !force {
+	uploadTLog := cosign.Experimental()
+	if uploadTLog && !force {
 		if _, err := remote.Get(ref); err != nil {
 			fmt.Print("warning: uploading to the public transparency log for a private image, please confirm [Y/N]: ")
-			var response string
-			if _, err := fmt.Scanln(&response); err != nil {
+
+			var tlogConfirmResponse string
+			if _, err := fmt.Scanln(&tlogConfirmResponse); err != nil {
 				return err
 			}
-			if response != "Y" {
+			if tlogConfirmResponse != "Y" {
 				fmt.Println("not uploading to transparency log")
-				return nil
+				uploadTLog = false
 			}
 		}
 	}
 
-	// Upload the cert or the public key, depending on what we have
 	var rekorBytes []byte
-	if cert != "" {
-		rekorBytes = []byte(cert)
-	} else {
-		pemBytes, err := cosign.PublicKeyPem(ctx, signer)
-		if err != nil {
-			return nil
+	if uploadTLog {
+		// Upload the cert or the public key, depending on what we have
+		if cert != "" {
+			rekorBytes = []byte(cert)
+		} else {
+			pemBytes, err := cosign.PublicKeyPem(ctx, signer)
+			if err != nil {
+				return err
+			}
+			rekorBytes = pemBytes
 		}
-		rekorBytes = pemBytes
 	}
-	entry, err := cosign.UploadTLog(sig, payload, rekorBytes)
-	if err != nil {
-		return err
-	}
-	fmt.Println("tlog entry created with index: ", *entry.LogIndex)
 
-	uo.Bundle = bundle(entry)
-	uo.AdditionalAnnotations = annotations(entry)
-	if _, err = cosign.Upload(ctx, sig, payload, dstRef, uo); err != nil {
-		return errors.Wrap(err, "uploading")
+	for i, img := range toSign {
+		// The payload can be specified via a flag to skip generation.
+		var payload []byte
+		if payloadPath != "" && i == 0 {
+			fmt.Fprintln(os.Stderr, "Using payload from:", payloadPath)
+			payload, err = ioutil.ReadFile(filepath.Clean(payloadPath))
+		} else {
+			payload, err = (&sigPayload.Cosign{
+				Image:       img,
+				Annotations: so.Annotations,
+			}).MarshalJSON()
+		}
+		if err != nil {
+			return errors.Wrap(err, "payload")
+		}
+
+		sig, _, err := signer.Sign(ctx, payload)
+		if err != nil {
+			return errors.Wrap(err, "signing")
+		}
+
+		if !upload {
+			fmt.Println(base64.StdEncoding.EncodeToString(sig))
+			continue
+		}
+
+		// sha256:... -> sha256-...
+		sigRef, err := cosign.SignaturesRef(img)
+		if err != nil {
+			return err
+		}
+
+		uo := cosign.UploadOpts{
+			Cert:         cert,
+			Chain:        chain,
+			DupeDetector: dupeDetector,
+			RemoteOpts:   []remote.Option{remoteAuth},
+		}
+
+		if uploadTLog {
+			entry, err := cosign.UploadTLog(sig, payload, rekorBytes)
+			if err != nil {
+				return err
+			}
+			fmt.Println("tlog entry created with index: ", *entry.LogIndex)
+
+			uo.Bundle = bundle(entry)
+			uo.AdditionalAnnotations = annotations(entry)
+		}
+
+		fmt.Fprintln(os.Stderr, "Pushing signature to:", sigRef.String())
+		if _, err = cosign.Upload(ctx, sig, payload, sigRef, uo); err != nil {
+			return errors.Wrap(err, "uploading")
+		}
 	}
+
 	return nil
 }
 

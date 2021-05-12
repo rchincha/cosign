@@ -55,15 +55,15 @@ func DockerMediaTypes() bool {
 	return false
 }
 
-func DestinationRef(ref name.Reference, img *remote.Descriptor) (name.Reference, error) {
-	dstTag := ref.Context().Tag(Munge(img.Descriptor))
+func substituteRepo(img name.Reference) (name.Reference, error) {
 	wantRepo := os.Getenv(repoEnv)
 	if wantRepo == "" {
-		return dstTag, nil
+		return img, nil
 	}
+	reg := img.Context().RegistryStr()
 	// strip registry from image
-	oldImage := strings.TrimPrefix(dstTag.Name(), dstTag.RegistryStr())
-	newSubrepo := strings.TrimPrefix(wantRepo, dstTag.RegistryStr())
+	oldImage := strings.TrimPrefix(img.Name(), reg)
+	newSubrepo := strings.TrimPrefix(wantRepo, reg)
 
 	// replace old subrepo with new one
 	subRepo := strings.Split(oldImage, "/")
@@ -72,8 +72,17 @@ func DestinationRef(ref name.Reference, img *remote.Descriptor) (name.Reference,
 	} else {
 		subRepo[1] = strings.TrimPrefix(s[1], "/")
 	}
-	subbed := dstTag.RegistryStr() + strings.Join(subRepo, "/")
+	subbed := reg + strings.Join(subRepo, "/")
 	return name.ParseReference(subbed)
+}
+
+func SignaturesRef(signed name.Digest) (name.Reference, error) {
+	return substituteRepo(signed.Context().Tag(signatureImageTagForDigest(signed.DigestStr())))
+}
+
+func DestinationRef(ref name.Reference, img *remote.Descriptor) (name.Reference, error) {
+	dstTag := ref.Context().Tag(Munge(img.Descriptor))
+	return substituteRepo(dstTag)
 }
 
 // Upload will upload the signature, public key and payload to the tlog
