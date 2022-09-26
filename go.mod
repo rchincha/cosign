@@ -10,16 +10,16 @@ require (
 	github.com/go-openapi/swag v0.19.15
 	github.com/go-piv/piv-go v1.8.0
 	github.com/google/certificate-transparency-go v1.1.2-0.20210728111105-5f7e9ba4be3d
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.6.1-0.20210922191434-34b7f00d7a60
 	github.com/google/trillian v1.3.14-0.20210713114448-df474653733c
-	github.com/in-toto/in-toto-golang v0.3.1
+	github.com/in-toto/in-toto-golang v0.4.0
 	github.com/manifoldco/promptui v0.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/sigstore/fulcio v0.1.2-0.20210831152525-42f7422734bb
 	github.com/sigstore/rekor v0.3.0
 	github.com/sigstore/sigstore v0.0.0-20210729211320-56a91f560f44
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.0
 	github.com/theupdateframework/go-tuf v0.0.0-20210722233521-90e262754396
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	google.golang.org/api v0.57.0
@@ -31,12 +31,7 @@ require (
 
 require (
 	cloud.google.com/go/kms v0.1.0 // indirect
-	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cncf/udpa/go v0.0.0-20210322005330-6414d713912e // indirect
-	github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
-	github.com/envoyproxy/go-control-plane v0.9.9 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.1 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -46,9 +41,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/onsi/gomega v1.15.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.1.0
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/spf13/cobra v1.2.1
+	github.com/secure-systems-lab/go-securesystemslib v0.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/tent/canonical-json-go v0.0.0-20130607151641-96e4ba3a7613
 	github.com/urfave/cli v1.22.5 // indirect
 	go.opentelemetry.io/contrib v0.22.0 // indirect
