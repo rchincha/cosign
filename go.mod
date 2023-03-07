@@ -19,9 +19,9 @@ require (
 	github.com/sigstore/fulcio v0.1.2-0.20210831152525-42f7422734bb
 	github.com/sigstore/rekor v0.3.0
 	github.com/sigstore/sigstore v0.0.0-20210729211320-56a91f560f44
-	github.com/stretchr/testify v1.7.0
-	github.com/theupdateframework/go-tuf v0.0.0-20210722233521-90e262754396
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	github.com/stretchr/testify v1.8.0
+	github.com/theupdateframework/go-tuf v0.3.2
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/api v0.57.0
 	k8s.io/api v0.21.4
 	k8s.io/apimachinery v0.21.4
@@ -39,14 +39,12 @@ require (
 	github.com/envoyproxy/go-control-plane v0.9.9 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.1 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
-	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20210924194000-308547aa3b27
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/onsi/gomega v1.15.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.1.0
+	github.com/secure-systems-lab/go-securesystemslib v0.4.0
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/tent/canonical-json-go v0.0.0-20130607151641-96e4ba3a7613
@@ -54,7 +52,6 @@ require (
 	go.opentelemetry.io/contrib v0.22.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.9.0 // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	k8s.io/klog/v2 v2.10.0 // indirect
 	k8s.io/utils v0.0.0-20210802155522-efc7438f0176 // indirect
